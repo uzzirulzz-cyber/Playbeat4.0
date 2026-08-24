@@ -22,10 +22,12 @@ import {
   LogOut,
   Loader2,
   Package,
+  Copy,
+  Archive,
 } from 'lucide-react';
 
 export const ProductManagement: React.FC = () => {
-  const { products, deleteProduct, formatPrice, setSelectedProduct, addToast, setCurrentUser, setActiveView, refreshProducts } = useStore();
+  const { products, addProduct, updateProduct, deleteProduct, formatPrice, setSelectedProduct, addToast, setCurrentUser, setActiveView, refreshProducts } = useStore();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | ProductType>('all');
@@ -363,6 +365,39 @@ export const ProductManagement: React.FC = () => {
     }
   };
 
+  const handleDuplicate = (product: Product) => {
+    const baseSku = `${product.sku}-COPY`;
+    const usedSkus = new Set(products.map((item) => item.sku.toLowerCase()));
+    let nextSku = baseSku;
+    let suffix = 2;
+    while (usedSkus.has(nextSku.toLowerCase())) nextSku = `${baseSku}-${suffix++}`;
+    const now = new Date().toISOString();
+    const duplicate: Product = {
+      ...product,
+      id: `prod-${Date.now()}`,
+      title: `${product.title} (Copy)`,
+      slug: `${product.slug}-copy`,
+      sku: nextSku,
+      status: 'draft',
+      variations: product.variations.map((variation, index) => ({
+        ...variation,
+        id: `v-${Date.now()}-${index}`,
+        sku: variation.sku ? `${variation.sku}-COPY` : undefined,
+      })),
+      createdAt: now,
+      updatedAt: now,
+    };
+    addProduct(duplicate);
+    addToast('success', 'Product Duplicated', `${duplicate.title} was created as a draft.`);
+  };
+
+  const handleArchive = (product: Product) => {
+    if (product.status === 'archived') return;
+    if (!window.confirm(`Archive ${product.title}? It will be hidden from the storefront.`)) return;
+    updateProduct(product.id, { status: 'archived' });
+    addToast('info', 'Product Archived', `${product.title} is no longer visible on the storefront.`);
+  };
+
   // Migrate product variations
   // Calls /api/admin/products/migrate-variations — a dry-run first, then
   // asks for confirmation, then applies.
@@ -677,6 +712,25 @@ export const ProductManagement: React.FC = () => {
                           aria-label={`Edit ${p.title}`}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleDuplicate(p)}
+                          className="p-2 rounded text-[var(--pb-silver-3)] hover:text-white hover:bg-white/10 transition-colors"
+                          title="Duplicate as draft"
+                          aria-label={`Duplicate ${p.title}`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleArchive(p)}
+                          disabled={p.status === 'archived'}
+                          className="p-2 rounded text-[var(--pb-silver-3)] hover:text-amber-300 hover:bg-amber-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Archive product"
+                          aria-label={`Archive ${p.title}`}
+                        >
+                          <Archive className="w-3.5 h-3.5" />
                         </button>
 
                         <button

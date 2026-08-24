@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { Product, ProductType, ProductVariation } from '../../types';
 import {
@@ -136,6 +136,37 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
   const [tagInput, setTagInput] = useState('');
   const [showLivePreview, setShowLivePreview] = useState(false);
 
+  // Keep the drawer form synchronized when the selected row changes. Without
+  // this, React preserves the previous product's draft while editing another.
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle(product?.title || '');
+    setSku(product?.sku || `PB-${Math.floor(1000 + Math.random() * 9000)}`);
+    setCategoryId(product?.categoryId || 'gaming');
+    setProductType(product?.productType || 'digital');
+    setPrice(product?.price || 29.99);
+    setCompareAtPrice(product?.compareAtPrice || 39.99);
+    setStock(product?.stock || 50);
+    setShortDescription(product?.shortDescription || '');
+    setDescription(product?.description || '');
+    setImages(product?.images || []);
+    setVideoUrl(product?.videoUrl || '');
+    setImageUrlInput('');
+    setVariations(product?.variations || [{ id: `v-${Date.now()}`, type: 'Edition', value: 'Standard Global', price: product?.price || 29.99, stock: product?.stock || 50 }]);
+    setStatus(product?.status || 'published');
+    setIsFeatured(product?.isFeatured ?? false);
+    setIsTrending(product?.isTrending ?? false);
+    setIsTrendingWeek(product?.isTrendingWeek ?? false);
+    setIsBestSeller(product?.isBestSeller ?? false);
+    setIsFlashDeal(product?.isFlashDeal ?? false);
+    setIsLimitedTime(product?.isLimitedTime ?? false);
+    setOfferBadgeText(product?.offerBadgeText || '');
+    setOfferBadgeColor(product?.offerBadgeColor || 'red');
+    setTags(product?.tags || []);
+    setTagInput('');
+    setShowLivePreview(false);
+  }, [isOpen, product]);
+
   if (!isOpen) return null;
 
   const handleAddTag = () => {
@@ -227,6 +258,9 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
 
   const hasDuplicateVariants = duplicateVariantKeys.size > 0;
 
+  const variantSkus = variations.map((variation) => variation.sku?.trim().toLowerCase()).filter(Boolean) as string[];
+  const hasDuplicateVariantSkus = new Set(variantSkus).size !== variantSkus.length;
+
   // Duplicate SKU detection across catalog (excluding the product being edited).
   const existingSkus = products
     .filter((p) => p.id !== product?.id)
@@ -255,6 +289,10 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
     }
     if (hasDuplicateVariants) {
       addToast('error', 'Duplicate Variants', 'Two or more variations share the same type and value. Please make each variation unique before saving.');
+      return;
+    }
+    if (hasDuplicateVariantSkus) {
+      addToast('error', 'Duplicate Variant SKU', 'Each variant SKU must be unique before publishing.');
       return;
     }
 
@@ -792,9 +830,10 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
 
               {/* Column labels */}
               {variations.length > 0 && (
-                <div className="grid grid-cols-[7rem_1fr_5rem_5rem_2rem] gap-2 px-1 text-[10px] font-mono uppercase text-neutral-500 tracking-wider">
+                <div className="grid grid-cols-[7rem_1fr_6rem_5rem_5rem_2rem] gap-2 px-1 text-[10px] font-mono uppercase text-neutral-500 tracking-wider">
                   <span>Type</span>
                   <span>Value</span>
+                  <span>Variant SKU</span>
                   <span>Price</span>
                   <span>Stock</span>
                   <span></span>
@@ -808,7 +847,7 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
                   return (
                     <div
                       key={idx}
-                      className={`grid grid-cols-[7rem_1fr_5rem_5rem_2rem] gap-2 items-center p-1 rounded-lg ${
+                      className={`grid grid-cols-[7rem_1fr_6rem_5rem_5rem_2rem] gap-2 items-center p-1 rounded-lg ${
                         isDup ? 'bg-red-500/10 ring-1 ring-red-500/30' : ''
                       }`}
                     >
@@ -829,6 +868,13 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({ product,
                         className={`w-full bg-black/50 rounded-lg border px-2.5 py-1.5 text-xs text-white ${
                           isDup ? 'border-red-500/50' : 'border-white/10'
                         }`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="SKU"
+                        value={v.sku || ''}
+                        onChange={(e) => handleVariationChange(idx, 'sku', e.target.value.toUpperCase())}
+                        className="w-full bg-black/50 rounded-lg border border-white/10 px-2 py-1.5 text-[10px] text-white font-mono"
                       />
                       <input
                         type="number"

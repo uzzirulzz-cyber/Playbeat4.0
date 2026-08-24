@@ -31,6 +31,7 @@ import { PaymentProofs } from './PaymentProofs';
 import { SecurityAuditLogs } from './SecurityAuditLogs';
 import { AccountManagement } from './AccountManagement';
 import { SuperAgentManagement } from './SuperAgentManagement';
+import { BrandingAppearance } from './BrandingAppearance';
 import {
   LayoutDashboard,
   Globe,
@@ -102,6 +103,13 @@ const NAVIGATION_SECTIONS: NavSection[] = [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'website-builder', label: 'Website Builder CMS', icon: Globe },
       { id: 'analytics', label: 'Analytics & Traffic', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Website',
+    items: [
+      { id: 'branding', label: 'Branding & Appearance', icon: Palette },
+      { id: 'nav-manager', label: 'Navigation & Menus', icon: Menu },
     ],
   },
   {
@@ -242,6 +250,8 @@ export const AdminLayout: React.FC = () => {
         return <AdminDashboard />;
       case 'nav-manager':
         return <NavigationManager />;
+      case 'branding':
+        return <BrandingAppearance />;
       case 'system-status':
         return <SystemStatusView />;
 

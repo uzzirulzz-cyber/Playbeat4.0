@@ -418,7 +418,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const [g2gSettings, setG2GSettings] = useState<G2GSettingsState>({
     status: 'connected',
-    apiKey: 'g2g_live_sec_894208914891',
+    // Credentials belong on the server; never ship supplier secrets to the browser.
+    apiKey: '',
     marginMarkupPercent: 18,
     environment: 'production',
     autoSync: true,
