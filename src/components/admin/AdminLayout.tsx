@@ -38,6 +38,7 @@ import {
   Globe,
   BarChart3,
   Package,
+  Truck,
   Key,
   ShoppingCart,
   CreditCard,
@@ -66,6 +67,7 @@ import {
   Plus,
   Upload,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -102,60 +104,66 @@ const NAVIGATION_SECTIONS: NavSection[] = [
     title: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'website-builder', label: 'Website Builder CMS', icon: Globe },
-      { id: 'analytics', label: 'Analytics & Traffic', icon: BarChart3 },
     ],
   },
   {
     title: 'Website',
     items: [
-      { id: 'branding', label: 'Branding & Appearance', icon: Palette },
+      { id: 'website-builder', label: 'Website Builder CMS', icon: Globe },
+      { id: 'content', label: 'Pages & Banners', icon: FileCheck2 },
       { id: 'nav-manager', label: 'Navigation & Menus', icon: Menu },
+      { id: 'branding', label: 'Branding & Appearance', icon: Palette },
     ],
   },
   {
-    title: 'Commerce & Inventory',
+    title: 'Commerce',
     items: [
-      { id: 'orders', label: 'Orders & Fulfillment', icon: ShoppingCart },
-      { id: 'products', label: 'Catalog Products', icon: Package },
+      { id: 'products', label: 'Product Catalog & SKUs', icon: Package },
       { id: 'catalog-agent', label: 'Catalog Refresh Agent', icon: Bot },
+      { id: 'smart-projectors', label: 'Inventory & Projectors', icon: Truck },
+      { id: 'orders', label: 'Orders & Fulfillment', icon: ShoppingCart },
+      { id: 'customers', label: 'Customers', icon: Users },
+      { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
       { id: 'license-vault', label: 'Digital License Vault', icon: Key },
       { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
-      { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
     ],
   },
   {
-    title: 'Customers & Support',
+    title: 'Marketing',
     items: [
-      { id: 'customers', label: 'Customer Accounts', icon: Users },
-      { id: 'account-management', label: 'Account Management', icon: UserCog },
-      { id: 'support-tickets', label: 'Support Tickets', icon: Ticket },
-    ],
-  },
-  {
-    title: 'IPTV & Services',
-    items: [
-      { id: 'iptv', label: 'IPTV M3U Servers', icon: Tv },
-    ],
-  },
-  {
-    title: 'Marketing & Integrations',
-    items: [
-      { id: 'woocommerce', label: 'WooCommerce Bridge', icon: Link2 },
+      { id: 'marketing', label: 'Promotions & Featured Products', icon: Sparkles },
       { id: 'social-automation', label: 'Social Automation', icon: Bot },
       { id: 'tiktok-leads', label: 'TikTok Leads Engine', icon: Music2 },
-      { id: 'email-sms', label: 'Email & SMS Campaigns', icon: Send },
+      { id: 'email-sms', label: 'Campaigns', icon: Send },
     ],
   },
   {
-    title: 'Payments & Security',
+    title: 'Analytics',
+    items: [
+      { id: 'analytics', label: 'Sales, Product & Traffic Analytics', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Finance & Integrations',
     items: [
       { id: 'financial-balance', label: 'Financial Balance', icon: Wallet },
-      { id: 'payments', label: 'Payment Gateways', icon: CreditCard },
-      { id: 'jazzcash', label: 'JazzCash & Merchant', icon: Store },
-      { id: 'payment-proofs', label: 'Payment Proofs', icon: FileCheck2 },
-      { id: 'security', label: 'Security & Audit Logs', icon: ShieldAlert },
-      { id: 'super-agents', label: 'Super Agent Management', icon: ShieldCheck },
+      { id: 'payments', label: 'Payments & Transactions', icon: CreditCard },
+      { id: 'payment-proofs', label: 'Payment Proofs & Refunds', icon: FileCheck2 },
+      { id: 'woocommerce', label: 'WooCommerce Bridge', icon: Link2 },
+      { id: 'g2g', label: 'Supplier Integrations', icon: Link2 },
+      { id: 'iptv', label: 'IPTV Services', icon: Tv },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { id: 'account-management', label: 'Admin Users & Sessions', icon: UserCog },
+      { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
+      { id: 'security', label: 'Audit Logs & Security', icon: ShieldAlert },
+      { id: 'system-status', label: 'System Settings & Health', icon: Lock },
+      { id: 'support-tickets', label: 'Support Inbox', icon: Ticket },
+      { id: 'super-agents', label: 'Automation Agents', icon: Bot },
+      { id: 'jazzcash', label: 'JazzCash Merchant', icon: Store },
     ],
   },
 ];

@@ -24,6 +24,7 @@ import {
   Package,
   Copy,
   Archive,
+  Download,
 } from 'lucide-react';
 
 export const ProductManagement: React.FC = () => {
@@ -38,7 +39,11 @@ export const ProductManagement: React.FC = () => {
   const [csvUploading, setCsvUploading] = useState(false);
   const [isCsvReviewOpen, setIsCsvReviewOpen] = useState(false);
   const [isMigratingVars, setIsMigratingVars] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | Product['status']>('all');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const pageSize = 25;
 
   // CSV import — handles both simple CSV and WooCommerce export format
   // Supports quoted fields with embedded commas/newlines
@@ -351,12 +356,50 @@ export const ProductManagement: React.FC = () => {
 
   const filteredProducts = products.filter(p => {
     if (typeFilter !== 'all' && p.productType !== typeFilter) return false;
+    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       return p.title.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.categoryName.toLowerCase().includes(q);
     }
     return true;
   });
+
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const visibleProducts = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
+  const allVisibleSelected = visibleProducts.length > 0 && visibleProducts.every(product => selectedIds.includes(product.id));
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
+  };
+
+  const toggleVisible = () => {
+    setSelectedIds(current => allVisibleSelected
+      ? current.filter(id => !visibleProducts.some(product => product.id === id))
+      : [...new Set([...current, ...visibleProducts.map(product => product.id)])]);
+  };
+
+  const handleBulkStatus = (status: Product['status']) => {
+    if (!selectedIds.length) return;
+    selectedIds.forEach(id => updateProduct(id, { status }));
+    addToast('success', 'Bulk Update Complete', `${selectedIds.length} product(s) marked ${status.replace('_', ' ')}.`);
+    setSelectedIds([]);
+  };
+
+  const exportCatalog = () => {
+    const headers = ['Name', 'Title', 'SKU', 'Description', 'Category', 'Price', 'Sale Price', 'Stock', 'Status', 'Images'];
+    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csv = [headers.join(','), ...products.map(product => [
+      product.title, product.title, product.sku, product.description, product.categoryName,
+      product.compareAtPrice, product.price, product.stock, product.status, product.images.join('|'),
+    ].map(escape).join(','))].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `playbeat-catalog-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    addToast('success', 'Catalog Exported', `${products.length} products exported to CSV.`);
+  };
 
   const handleDelete = (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete ${title}?`)) {
@@ -501,6 +544,11 @@ export const ProductManagement: React.FC = () => {
             <span>CSV Import</span>
           </button>
 
+          <button onClick={exportCatalog} className="pb-btn pb-btn-secondary pb-btn-sm" title="Export the current catalog as CSV">
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
+
           {/* Add New Product */}
           <button
             onClick={() => {
@@ -581,7 +629,24 @@ export const ProductManagement: React.FC = () => {
             <Truck className="w-3 h-3" /> 4K Projectors
           </button>
         </div>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }} className="pb-select text-xs">
+          <option value="all">All statuses</option>
+          <option value="published">Published</option>
+          <option value="draft">Drafts</option>
+          <option value="pending_approval">Pending approval</option>
+          <option value="archived">Archived</option>
+        </select>
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="pb-panel p-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-white font-semibold mr-2">{selectedIds.length} selected</span>
+          <button onClick={() => handleBulkStatus('published')} className="pb-btn pb-btn-success pb-btn-sm">Publish</button>
+          <button onClick={() => handleBulkStatus('draft')} className="pb-btn pb-btn-secondary pb-btn-sm">Move to draft</button>
+          <button onClick={() => handleBulkStatus('archived')} className="pb-btn pb-btn-dark pb-btn-sm">Archive</button>
+          <button onClick={() => setSelectedIds([])} className="pb-btn pb-btn-ghost pb-btn-sm">Clear</button>
+        </div>
+      )}
 
       {/* Products Table */}
       <div className="rounded-xl pb-panel overflow-hidden shadow-lg">
@@ -589,6 +654,7 @@ export const ProductManagement: React.FC = () => {
           <table className="pb-table min-w-[900px]">
             <thead>
               <tr>
+                <th className="w-10"><input type="checkbox" checked={allVisibleSelected} onChange={toggleVisible} aria-label="Select visible products" /></th>
                 <th>Product Details</th>
                 <th>SKU / Type</th>
                 <th>Status</th>
@@ -600,7 +666,7 @@ export const ProductManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((p) => {
+              {visibleProducts.map((p) => {
                 const isPhysical = p.productType === 'physical_projector';
                 const stockLow = p.stock <= p.lowStockThreshold;
                 const stockOut = p.stock <= 0;
@@ -618,6 +684,7 @@ export const ProductManagement: React.FC = () => {
 
                 return (
                   <tr key={p.id}>
+                    <td><input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => toggleSelected(p.id)} aria-label={`Select ${p.title}`} /></td>
                     <td>
                       <div className="flex items-center gap-3">
                         <img
@@ -746,8 +813,18 @@ export const ProductManagement: React.FC = () => {
                   </tr>
                 );
               })}
+              {visibleProducts.length === 0 && <tr><td colSpan={9} className="p-10 text-center text-sm text-[var(--pb-silver-3)]">No products match these filters.</td></tr>}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 text-xs text-[var(--pb-silver-3)]">
+        <span>Showing {filteredProducts.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, filteredProducts.length)} of {filteredProducts.length}</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page === 1} className="pb-btn pb-btn-secondary pb-btn-sm">Previous</button>
+          <span className="font-mono">Page {page} / {pageCount}</span>
+          <button onClick={() => setPage(current => Math.min(pageCount, current + 1))} disabled={page === pageCount} className="pb-btn pb-btn-secondary pb-btn-sm">Next</button>
         </div>
       </div>
 
