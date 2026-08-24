@@ -32,7 +32,7 @@ import {
 import { CUSTOM_CATEGORIES, CUSTOM_PRODUCTS } from '../data/customCatalog.js';
 import type {
   Product, Category, User, Order, Coupon, AdminLog,
-  G2GSupplierConnector, ContentSection, ImportJob, OrderStatus,
+  G2GSupplierConnector, ContentSection, ImportJob, OrderStatus, NavItem,
 } from '../types.js';
 import { hashPassword } from './auth.js';
 
@@ -48,6 +48,7 @@ let memAdminLogs: AdminLog[] = [...INITIAL_ADMIN_LOGS];
 let memImportJobs: ImportJob[] = [];
 let memG2GConnector: G2GSupplierConnector = { ...INITIAL_G2G_CONNECTOR };
 let memContent: ContentSection = { ...INITIAL_CONTENT };
+let memNavItems: NavItem[] = [];
 let zeroStateReset = false;
 const REQUESTED_ADMIN_AGENTS = INITIAL_USERS.filter(user =>
   user.email === 'mahbuba@playbeat.digital' || user.email === 'qazi@playbeat.digital'
@@ -529,6 +530,7 @@ export async function resetDatabase(): Promise<void> {
   memImportJobs = [];
   memG2GConnector = {} as G2GSupplierConnector;
   memContent = {} as ContentSection;
+  memNavItems = [];
   zeroStateReset = true;
 
   // Keep the zero-state decision for this server instance.
@@ -548,6 +550,7 @@ export async function resetDatabase(): Promise<void> {
     const collections = [
       'products', 'categories', 'users', 'orders', 'coupons',
       'admin_logs', 'g2g_connector', 'content', 'import_jobs',
+      'navigation',
     ];
     await Promise.all([
       ...collections.filter(name => name !== 'users').map(name => db.collection(name).deleteMany({})),
@@ -664,6 +667,26 @@ export async function incrementCouponUsage(code: string): Promise<void> {
   }
 }
 
+export async function createCoupon(coupon: Coupon): Promise<void> {
+  if (isMongoConfigured) {
+    const db = await getDb();
+    await db.collection('coupons').insertOne({ ...coupon, _seededAt: new Date().toISOString() });
+  } else {
+    memCoupons.unshift(coupon);
+  }
+}
+
+export async function deleteCoupon(id: string): Promise<boolean> {
+  if (isMongoConfigured) {
+    const db = await getDb();
+    const result = await db.collection('coupons').deleteOne({ id });
+    return result.deletedCount > 0;
+  }
+  const before = memCoupons.length;
+  memCoupons = memCoupons.filter(coupon => coupon.id !== id);
+  return memCoupons.length < before;
+}
+
 // ============================================================
 // CONTENT (single document)
 // ============================================================
@@ -691,6 +714,35 @@ export async function updateContent(updates: Partial<ContentSection>): Promise<C
   }
   memContent = { ...memContent, ...updates };
   return memContent;
+}
+
+// ============================================================
+// NAVIGATION (single document)
+// ============================================================
+
+export async function getNavigation(): Promise<NavItem[]> {
+  if (isMongoConfigured) {
+    await ensureSeeded();
+    const db = await getDb();
+    const doc = await db.collection('navigation').findOne({}, { projection: { _seededAt: 0, _id: 0 } });
+    if (doc && Array.isArray((doc as any).items)) return (doc as any).items as NavItem[];
+    return [];
+  }
+  return [...memNavItems];
+}
+
+export async function updateNavigation(items: NavItem[]): Promise<NavItem[]> {
+  if (isMongoConfigured) {
+    const db = await getDb();
+    const result = await db.collection('navigation').findOneAndUpdate(
+      {},
+      { $set: { items, updatedAt: new Date().toISOString() } },
+      { returnDocument: 'after', projection: { _seededAt: 0, _id: 0 }, upsert: true }
+    );
+    return ((result as any)?.items as NavItem[]) || items;
+  }
+  memNavItems = [...items];
+  return memNavItems;
 }
 
 // ============================================================

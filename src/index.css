@@ -19,6 +19,33 @@
 
 .storefront-subnav {
   flex-shrink: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Soft silver water-glow sweep shared by both live navigation bars. */
+.storefront-subnav::before {
+  content: '';
+  position: absolute;
+  inset: -140% -12%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 55%, rgba(241, 245, 249, .2), transparent 28%),
+    radial-gradient(ellipse at 78% 35%, rgba(148, 163, 184, .18), transparent 30%),
+    linear-gradient(105deg, transparent 28%, rgba(255, 255, 255, .13) 44%, transparent 62%);
+  transform: translateX(-12%) rotate(-2deg);
+  animation: nav-water-glow 9s ease-in-out infinite alternate;
+}
+
+@keyframes nav-water-glow {
+  from { transform: translateX(-12%) rotate(-2deg); opacity: .55; }
+  to { transform: translateX(12%) rotate(2deg); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront-subnav::before { animation: none; }
 }
 
 .storefront-subnav-promos {

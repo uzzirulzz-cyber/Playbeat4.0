@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { LeadStatus, TikTokLead } from '../../types';
-import { Music2, Users, DollarSign, TrendingUp, Mail, Phone, ArrowRight, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Music2, Users, DollarSign, TrendingUp, Mail, Phone, ArrowRight, CheckCircle2, XCircle, Clock, BarChart3, Megaphone, Image, Search, Gauge, ExternalLink } from 'lucide-react';
+
+const TIKTOK_ADS_MODULES = [
+  { title: 'Account insights', description: 'Spend, impressions, clicks, CTR, CPM and CPC reporting.', icon: BarChart3 },
+  { title: 'Campaign intelligence', description: 'Campaign, ad group and ad structure with performance audits.', icon: Megaphone },
+  { title: 'Creative library', description: 'Image, video and identity inventory with launch readiness.', icon: Image },
+  { title: 'Keyword & targeting', description: 'Keywords, interests, hashtags and negative keyword guidance.', icon: Search },
+  { title: 'Benchmark plus', description: 'Peer comparison, historical baseline and effect evaluation.', icon: Gauge },
+  { title: 'Access & OAuth', description: 'Advertiser discovery through OAuth 2.1 PKCE.', icon: ExternalLink },
+];
 
 const STATUS_META: Record<LeadStatus, { pill: string; label: string }> = {
   new: { pill: 'admin-pill-blue', label: 'New' },
@@ -84,6 +93,27 @@ export const TikTokLeadsEngine: React.FC = () => {
             <div className="text-xl font-bold text-white mt-1">{conversionRate.toFixed(1)}%</div>
             <div className="text-[10px] text-gray-500 mt-0.5">lead→customer</div>
           </div>
+        </div>
+      </div>
+
+      <div className="admin-card p-5 border-pink-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-pink-300 font-mono font-bold">TikTok Ads MCP · v2.0.1</div>
+            <h2 className="text-sm font-bold text-white mt-1">Business management workspace</h2>
+            <p className="text-[11px] text-gray-500 mt-1">Connect <span className="text-gray-300 font-mono">tt-ads-flat</span> to run live analysis through the attached HuntMobi skill pack.</p>
+          </div>
+          <a href="https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat" target="_blank" rel="noreferrer" className="px-3 py-2 rounded-lg bg-pink-500/15 border border-pink-400/30 text-pink-200 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit">
+            <ExternalLink className="w-3.5 h-3.5" /> Connect MCP
+          </a>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          {TIKTOK_ADS_MODULES.map(({ title, description, icon: Icon }) => (
+            <div key={title} className="p-3 rounded-xl bg-[#0f141c] border border-[#1f2937] flex items-start gap-2.5">
+              <Icon className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+              <div><div className="text-xs font-semibold text-white">{title}</div><div className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{description}</div></div>
+            </div>
+          ))}
         </div>
       </div>
 

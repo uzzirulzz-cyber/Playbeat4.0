@@ -178,6 +178,11 @@ export const NavigationManager: React.FC = () => {
       }
     ];
     setNavItems(defaultItems);
+    fetch('/api/navigation', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: defaultItems }),
+    }).catch(() => {});
   };
 
   return (

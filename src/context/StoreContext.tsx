@@ -437,8 +437,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     Promise.all([
       fetch('/api/products').then(res => res.json()),
       fetch('/api/orders').then(res => res.json()),
+      fetch('/api/content').then(res => res.json()),
+      fetch('/api/coupons').then(res => res.json()),
+      fetch('/api/navigation').then(res => res.json()),
     ])
-      .then(([productsData, ordersData]) => {
+      .then(([productsData, ordersData, contentData, couponsData, navigationData]) => {
         const nextProducts = Array.isArray(productsData.products) ? productsData.products : CUSTOM_PRODUCTS;
         const nextOrders = Array.isArray(ordersData.orders) ? ordersData.orders : INITIAL_ORDERS;
         const isResetState = nextProducts.length === 0 && nextOrders.length === 0;
@@ -448,6 +451,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (!isZeroState) {
           setProducts(nextProducts);
           setOrders(nextOrders);
+          if (contentData?.content) setContent(contentData.content);
+          if (Array.isArray(couponsData?.coupons)) setCoupons(couponsData.coupons);
+          if (Array.isArray(navigationData?.items) && navigationData.items.length > 0) setNavItems(navigationData.items);
         }
 
         // The reset endpoint clears MongoDB, but these admin-only datasets are
@@ -641,10 +647,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addCoupon = (newC: Coupon) => {
     setCoupons(prev => [newC, ...prev]);
+    fetch('/api/coupons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newC),
+    }).catch(() => {});
   };
 
   const deleteCoupon = (id: string) => {
     setCoupons(prev => prev.filter(c => c.id !== id));
+    fetch(`/api/coupons/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
     addToast('info', 'Coupon Deleted', 'Promo code removed.');
   };
 
@@ -1173,6 +1185,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newContent)
+    }).then(async response => {
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.content) setContent(data.content);
     }).catch(() => {});
     addToast('success', 'Storefront Updated', 'Homepage banners and announcements updated.');
   };
@@ -1280,26 +1295,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...item,
       id: `nav-${Date.now()}`
     };
-    setNavItems(prev => [...prev, newItem]);
+    setNavItems(prev => {
+      const next = [...prev, newItem];
+      fetch('/api/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: next }) }).catch(() => {});
+      return next;
+    });
     addToast('success', 'Navigation Item Added', `"${item.label}" added to menu.`);
   };
 
   const updateNavItem = (id: string, updates: Partial<NavItem>) => {
-    setNavItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+    setNavItems(prev => {
+      const next = prev.map(item => item.id === id ? { ...item, ...updates } : item);
+      fetch('/api/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: next }) }).catch(() => {});
+      return next;
+    });
     addToast('success', 'Navigation Updated', 'Menu item saved successfully.');
   };
 
   const deleteNavItem = (id: string) => {
-    setNavItems(prev => prev.filter(item => item.id !== id));
+    setNavItems(prev => {
+      const next = prev.filter(item => item.id !== id);
+      fetch('/api/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: next }) }).catch(() => {});
+      return next;
+    });
     addToast('info', 'Navigation Item Removed', 'Menu item deleted.');
   };
 
   const reorderNavItems = (newItems: NavItem[]) => {
-    setNavItems(newItems.map((item, idx) => ({ ...item, order: idx + 1 })));
+    const next = newItems.map((item, idx) => ({ ...item, order: idx + 1 }));
+    setNavItems(next);
+    fetch('/api/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: next }) }).catch(() => {});
   };
 
   const toggleNavItemActive = (id: string) => {
-    setNavItems(prev => prev.map(item => item.id === id ? { ...item, isActive: !item.isActive } : item));
+    setNavItems(prev => {
+      const next = prev.map(item => item.id === id ? { ...item, isActive: !item.isActive } : item);
+      fetch('/api/navigation', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: next }) }).catch(() => {});
+      return next;
+    });
   };
 
   return (

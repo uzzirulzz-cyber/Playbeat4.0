@@ -3,6 +3,7 @@ import { useStore } from '../../context/StoreContext';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Product, ProductType } from '../../types';
 import { ProductEditorModal } from './ProductEditorModal';
+import { CsvImportReviewModal } from './CsvImportReviewModal';
 import {
   Plus,
   Search,
@@ -24,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export const ProductManagement: React.FC = () => {
-  const { products, deleteProduct, formatPrice, setSelectedProduct, addToast, setCurrentUser, setActiveView } = useStore();
+  const { products, deleteProduct, formatPrice, setSelectedProduct, addToast, setCurrentUser, setActiveView, refreshProducts } = useStore();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | ProductType>('all');
@@ -33,6 +34,7 @@ export const ProductManagement: React.FC = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [csvUploading, setCsvUploading] = useState(false);
+  const [isCsvReviewOpen, setIsCsvReviewOpen] = useState(false);
   const [isMigratingVars, setIsMigratingVars] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -455,7 +457,7 @@ export const ProductManagement: React.FC = () => {
             className="hidden"
           />
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setIsCsvReviewOpen(true)}
             disabled={csvUploading}
             className="pb-btn pb-btn-success pb-btn-sm"
             title="Update matching SKUs, publish them, and add new products from a CSV file"
@@ -702,6 +704,17 @@ export const ProductManagement: React.FC = () => {
         onClose={() => {
           setIsEditorOpen(false);
           setEditingProduct(null);
+        }}
+      />
+
+      <CsvImportReviewModal
+        isOpen={isCsvReviewOpen}
+        products={products}
+        addToast={addToast}
+        onClose={() => setIsCsvReviewOpen(false)}
+        onComplete={() => {
+          refreshProducts();
+          setTimeout(() => window.location.reload(), 900);
         }}
       />
     </div>

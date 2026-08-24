@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { PromoCoupon } from '../../types';
 import {
@@ -31,6 +31,16 @@ export const ContentManager: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [discountValue, setDiscountValue] = useState(15);
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+
+  useEffect(() => {
+    setAnnouncementText(content.announcementBar.text);
+    setAnnouncementBadge(content.announcementBar.badgeText || '');
+    setAnnouncementEnabled(content.announcementBar.enabled);
+    setHeadline(content.heroBanner.headline);
+    setSubheadline(content.heroBanner.subheadline);
+    setHighlightBadge(content.heroBanner.highlightBadge);
+    setCtaText(content.heroBanner.ctaText);
+  }, [content]);
 
   const handleSaveStoreContent = (e: React.FormEvent) => {
     e.preventDefault();

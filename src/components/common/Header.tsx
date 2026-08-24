@@ -540,11 +540,6 @@ export const Header: React.FC = () => {
                 <button
                   key={item.label}
                   onClick={() => {
-                    if (currentUser.id === 'guest') {
-                      setIsAuthModalOpen(true);
-                      addToast('info', 'Sign In Required', 'Please sign in or create an account to browse products.');
-                      return;
-                    }
                     setSelectedCategory(item.cat);
                     setProductTypeFilter(item.type);
                     setActivePromoFilter('all');
@@ -674,12 +669,6 @@ export const Header: React.FC = () => {
                   <button
                     key={item.label}
                     onClick={() => {
-                      if (currentUser.id === 'guest') {
-                        setIsAuthModalOpen(true);
-                        setIsMobileNavOpen(false);
-                        addToast('info', 'Sign In Required', 'Please sign in or create an account to browse products.');
-                        return;
-                      }
                       setSelectedCategory(item.cat);
                       setProductTypeFilter(item.type);
                       setActivePromoFilter('all');

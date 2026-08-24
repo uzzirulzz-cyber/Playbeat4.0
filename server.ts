@@ -21,7 +21,7 @@ import {
   INITIAL_COUPONS,
   INITIAL_ADMIN_LOGS
 } from './src/data/mockData.js';
-import { Product, Order, User, G2GSupplierConnector, ContentSection, Coupon, AdminLog, ImportJob } from './src/types.js';
+import { Product, Order, User, G2GSupplierConnector, ContentSection, Coupon, AdminLog, ImportJob, NavItem } from './src/types.js';
 import { processSmartProductImport, RawImportItem } from './src/utils/smartImportEngine.js';
 import { deduplicateVariations } from './src/utils/variantProtection.js';
 import { buildVariationsForProduct, needsVariationMigration } from './src/utils/variationBuilder.js';
@@ -929,12 +929,59 @@ export function createApiApp(): Express {
     res.json({ content });
   });
 
+  // STOREFRONT NAVIGATION API
+  app.get('/api/navigation', async (_req, res) => {
+    const items = await repo.getNavigation();
+    res.json({ items });
+  });
+
+  app.put('/api/navigation', async (req, res) => {
+    if (!Array.isArray(req.body?.items)) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+    const items = await repo.updateNavigation(req.body.items as NavItem[]);
+    await repo.createAdminLog({
+      id: `log-${Date.now()}`,
+      adminName: 'PlayBeat Admin',
+      adminEmail: 'admin@playbeat.digital',
+      action: 'Navigation Updated',
+      targetType: 'content',
+      targetId: 'storefront-navigation',
+      details: `Updated ${items.length} storefront navigation items.`,
+      timestamp: new Date().toISOString(),
+    });
+    res.json({ items });
+  });
+
   // ----------------------------------------------------
   // COUPONS API
   // ----------------------------------------------------
   app.get('/api/coupons', async (req, res) => {
     const coupons = await repo.getCoupons();
     res.json({ coupons });
+  });
+
+  app.post('/api/coupons', async (req, res) => {
+    const coupon = req.body as Coupon;
+    if (!coupon.code || !coupon.discountType || !Number.isFinite(Number(coupon.discountValue))) {
+      return res.status(400).json({ error: 'Code, discount type, and value are required' });
+    }
+    const created: Coupon = {
+      ...coupon,
+      id: coupon.id || `c-${Date.now()}`,
+      code: coupon.code.trim().toUpperCase(),
+      discountValue: Number(coupon.discountValue),
+      usageCount: Number(coupon.usageCount || 0),
+      isActive: coupon.isActive !== false,
+    };
+    await repo.createCoupon(created);
+    res.status(201).json({ coupon: created });
+  });
+
+  app.delete('/api/coupons/:id', async (req, res) => {
+    const deleted = await repo.deleteCoupon(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Coupon not found' });
+    res.json({ success: true });
   });
 
   app.post('/api/coupons/validate', async (req, res) => {
