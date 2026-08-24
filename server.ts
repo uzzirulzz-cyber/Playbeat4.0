@@ -25,6 +25,7 @@ import { Product, Order, User, G2GSupplierConnector, ContentSection, Coupon, Adm
 import { processSmartProductImport, RawImportItem } from './src/utils/smartImportEngine.js';
 import { deduplicateVariations } from './src/utils/variantProtection.js';
 import { buildVariationsForProduct, needsVariationMigration } from './src/utils/variationBuilder.js';
+import { getCatalogAgentStatus, refreshCatalogFromSource, startCatalogAgentScheduler } from './src/lib/catalogRefreshAgent.js';
 import * as repo from './src/lib/repository.js';
 import {
   hashPassword, comparePassword, generateToken, sanitizeUser,
@@ -426,6 +427,30 @@ export function createApiApp(): Express {
         error: err?.message || 'Variation migration failed',
       });
     }
+  });
+
+  // ----------------------------------------------------
+  // SOURCE CATALOG REFRESH AGENT
+  // ----------------------------------------------------
+  app.get('/api/admin/catalog-agent/status', (_req, res) => {
+    res.json({ agent: getCatalogAgentStatus(), intervalMinutes: 5 });
+  });
+
+  app.post('/api/admin/catalog-agent/refresh', async (_req, res) => {
+    const agent = await refreshCatalogFromSource();
+    return res.status(agent.lastError ? 502 : 200).json({ success: !agent.lastError, agent });
+  });
+
+  // Vercel Cron invokes GET endpoints. Require a server-side secret so this
+  // scheduled refresh cannot be triggered by an arbitrary public request.
+  app.get('/api/admin/catalog-agent/refresh', async (req, res) => {
+    const cronSecret = process.env.CRON_SECRET;
+    const suppliedSecret = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.headers['x-cron-secret'];
+    if (!cronSecret || suppliedSecret !== cronSecret) {
+      return res.status(401).json({ success: false, error: 'Cron authorization required.' });
+    }
+    const agent = await refreshCatalogFromSource();
+    return res.status(agent.lastError ? 502 : 200).json({ success: !agent.lastError, agent });
   });
 
   // ----------------------------------------------------
@@ -1526,6 +1551,7 @@ export function createApiApp(): Express {
  */
 async function startServer() {
   const app = createApiApp();
+  startCatalogAgentScheduler();
   const PORT = 3000;
 
   // ----------------------------------------------------

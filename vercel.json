@@ -9,6 +9,9 @@
       "memory": 1024
     }
   },
+  "crons": [
+    { "path": "/api/admin/catalog-agent/refresh", "schedule": "*/5 * * * *" }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/terms", "destination": "/terms/index.html" },

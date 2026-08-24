@@ -32,6 +32,7 @@ import { SecurityAuditLogs } from './SecurityAuditLogs';
 import { AccountManagement } from './AccountManagement';
 import { SuperAgentManagement } from './SuperAgentManagement';
 import { BrandingAppearance } from './BrandingAppearance';
+import { CatalogRefreshAgent } from './CatalogRefreshAgent';
 import {
   LayoutDashboard,
   Globe,
@@ -117,6 +118,7 @@ const NAVIGATION_SECTIONS: NavSection[] = [
     items: [
       { id: 'orders', label: 'Orders & Fulfillment', icon: ShoppingCart },
       { id: 'products', label: 'Catalog Products', icon: Package },
+      { id: 'catalog-agent', label: 'Catalog Refresh Agent', icon: Bot },
       { id: 'license-vault', label: 'Digital License Vault', icon: Key },
       { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
       { id: 'discounts', label: 'Discounts & Coupons', icon: Tag },
@@ -258,6 +260,8 @@ export const AdminLayout: React.FC = () => {
       // Commerce & Inventory
       case 'products':
         return <ProductManagement />;
+      case 'catalog-agent':
+        return <CatalogRefreshAgent />;
       case 'smart-projectors':
         return <SmartProjectorsManager />;
       case 'license-vault':
