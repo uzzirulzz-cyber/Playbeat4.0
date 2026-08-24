@@ -893,46 +893,62 @@ export function createApiApp(): Express {
 
     const totalRevenue = orders.reduce((sum, o) => sum + (o.paymentStatus === 'paid' ? o.total : 0), 0);
     const totalOrders = orders.length;
-    const totalCustomers = users.length + 185; // Active registered base
+    const totalCustomers = users.filter(user => user.role === 'customer' && user.status !== 'deleted').length;
     const totalProducts = products.length;
     const digitalDeliveriesCount = orders.reduce((sum, o) => sum + o.items.filter(i => i.productType === 'digital').length, 0);
     const physicalShipmentsCount = orders.reduce((sum, o) => sum + o.items.filter(i => i.productType === 'physical_projector').length, 0);
     const lowStockCount = products.filter(p => p.stock <= p.lowStockThreshold).length;
 
-    // Monthly chart mock
-    const revenueTrend = [
-      { date: 'Aug 14', revenue: 4200, orders: 38, visitors: 1820 },
-      { date: 'Aug 15', revenue: 5800, orders: 49, visitors: 2240 },
-      { date: 'Aug 16', revenue: 7100, orders: 62, visitors: 2890 },
-      { date: 'Aug 17', revenue: 6400, orders: 54, visitors: 2510 },
-      { date: 'Aug 18', revenue: 8900, orders: 74, visitors: 3400 },
-      { date: 'Aug 19', revenue: 11200, orders: 91, visitors: 4100 },
-      { date: 'Aug 20', revenue: 9800, orders: 83, visitors: 3950 }
-    ];
+    const now = new Date();
+    const revenueTrend = Array.from({ length: 14 }, (_, offset) => {
+      const date = new Date(now);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (13 - offset));
+      const next = new Date(date);
+      next.setDate(next.getDate() + 1);
+      const dayOrders = orders.filter(order => {
+        const created = new Date(order.createdAt);
+        return created >= date && created < next;
+      });
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+        revenue: dayOrders.reduce((sum, order) => sum + (order.paymentStatus === 'paid' ? order.total : 0), 0),
+        orders: dayOrders.length,
+        visitors: 0,
+      };
+    });
 
-    const categoryBreakdown = [
-      { name: 'Smart Projectors', value: 42, color: '#EF4444' },
-      { name: 'Gaming & Keys', value: 24, color: '#9EADC8' },
-      { name: 'IPTV Subscriptions', value: 16, color: '#4B5563' },
-      { name: 'SaaS & Software', value: 12, color: '#374151' },
-      { name: 'Gift Cards', value: 6, color: '#1F2937' }
-    ];
+    const categoryTotals = new Map<string, number>();
+    orders.filter(order => order.paymentStatus === 'paid').forEach(order => order.items.forEach(item => {
+      const product = products.find(candidate => candidate.id === item.productId);
+      const category = product?.categoryName || 'Uncategorized';
+      categoryTotals.set(category, (categoryTotals.get(category) || 0) + (item.totalPrice || item.subtotal || item.unitPrice * item.quantity));
+    }));
+    const categoryRevenue = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1]);
+    const grossProfit = orders.filter(order => order.paymentStatus === 'paid').reduce((sum, order) => sum + order.items.reduce((itemSum, item) => {
+      const product = products.find(candidate => candidate.id === item.productId);
+      return itemSum + ((product?.price || item.unitPrice) - (product?.costPrice || 0)) * item.quantity;
+    }, 0), 0);
 
     res.json({
       metrics: {
         totalRevenue,
-        todaysSales: 2489.90,
+        todaysSales: orders.filter(order => new Date(order.createdAt).toDateString() === now.toDateString() && order.paymentStatus === 'paid').reduce((sum, order) => sum + order.total, 0),
+        monthlySales: orders.filter(order => {
+          const created = new Date(order.createdAt);
+          return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth() && order.paymentStatus === 'paid';
+        }).reduce((sum, order) => sum + order.total, 0),
         totalOrders,
         totalCustomers,
         totalProducts,
         digitalDeliveriesCount,
         physicalShipmentsCount,
         lowStockCount,
-        profitMarginPercent: 34.2,
-        conversionRatePercent: 4.8
+        profitMarginPercent: totalRevenue > 0 ? Number((grossProfit / totalRevenue * 100).toFixed(1)) : 0,
+        conversionRatePercent: 0
       },
       revenueTrend,
-      categoryBreakdown
+      categoryBreakdown: categoryRevenue.map(([name, value]) => ({ name, value, color: '#64748B' }))
     });
   });
 

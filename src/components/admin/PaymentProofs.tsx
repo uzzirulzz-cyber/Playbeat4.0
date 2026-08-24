@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { ProofStatus, PaymentProof } from '../../types';
-import { FileCheck, CheckCircle2, XCircle, Clock, Upload, FileText, AlertCircle, Link2, Search } from 'lucide-react';
+import { FileCheck, CheckCircle2, XCircle, Clock, FileText, AlertCircle, Link2, Search } from 'lucide-react';
 
 const STATUS_META: Record<ProofStatus, { pill: string; label: string; icon: React.ComponentType<{ className?: string }> }> = {
   pending_review: { pill: 'admin-pill-amber', label: 'Pending Review', icon: Clock },
@@ -15,7 +15,7 @@ const formatDate = (iso: string): string => {
 };
 
 export const PaymentProofs: React.FC = () => {
-  const { paymentProofs, approvePaymentProof, rejectPaymentProof, currentUser, addToast } = useStore();
+  const { paymentProofs, approvePaymentProof, rejectPaymentProof, currentUser } = useStore();
   const [statusFilter, setStatusFilter] = useState<'all' | ProofStatus>('pending_review');
   const [search, setSearch] = useState('');
 
@@ -61,12 +61,6 @@ export const PaymentProofs: React.FC = () => {
               <p className="text-xs text-gray-500 mt-0.5">Uploaded payment confirmations with OCR extraction and verification workflow.</p>
             </div>
           </div>
-          <button
-            onClick={() => addToast('info', 'Upload Coming Soon', 'Drag-and-drop uploader is being prepared.')}
-            className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors"
-          >
-            <Upload className="w-4 h-4" /><span>Upload Proof</span>
-          </button>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-[#1f2937]">
           <div className="p-3 rounded-lg bg-[#0f141c] border border-[#1f2937]">

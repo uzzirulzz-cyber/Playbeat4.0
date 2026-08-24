@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { User } from '../../types';
 import { Users, Search, Mail, ShoppingBag, Heart, DollarSign, MapPin, Clock } from 'lucide-react';
@@ -18,8 +18,16 @@ const timeAgo = (iso: string): string => {
 
 export const CustomerAccounts: React.FC = () => {
   const { products, orders, formatPrice } = useStore();
+  const [registeredCustomers, setRegisteredCustomers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/users')
+      .then(response => response.ok ? response.json() : { users: [] })
+      .then(data => setRegisteredCustomers(Array.isArray(data.users) ? data.users.filter((user: User) => user.role === 'customer' && user.status !== 'deleted') : []))
+      .catch(() => setRegisteredCustomers([]));
+  }, [orders.length]);
 
   // Build a customer view by combining users + their orders + wishlist items
   // For this demo we synthesize customer records from existing orders + the INITIAL_USERS
@@ -41,19 +49,13 @@ export const CustomerAccounts: React.FC = () => {
     return acc;
   }, [] as Array<{ id: string; name: string; email: string; phone?: string; ordersCount: number; totalSpent: number; lastOrderAt: string; wishlist: string[] }>);
 
-  // Combine with a few seed customers from products' totalSold to give more rows
-  const seedCustomers = [
-    { id: 'cust-1', name: 'Damian Thorne', email: 'damian@playbeat-client.com', phone: '+1 (555) 287-4421', ordersCount: 8, totalSpent: 4280, lastOrderAt: '2026-08-21T06:42:00Z', wishlist: ['PB-HY300-PRO'] },
-    { id: 'cust-2', name: 'Sarah Khan', email: 'sarah.khan@gmail.com', phone: '+92 300 1234567', ordersCount: 5, totalSpent: 1840, lastOrderAt: '2026-08-19T14:30:00Z', wishlist: [] },
-    { id: 'cust-3', name: 'Alex Vance', email: 'alex.vance@example.com', phone: '+1 (555) 881-3094', ordersCount: 12, totalSpent: 6420, lastOrderAt: '2026-08-20T22:30:00Z', wishlist: ['PB-HT23'] },
-    { id: 'cust-4', name: 'Maria Silva', email: 'maria.silva@outlook.com', phone: '+55 11 98765-4321', ordersCount: 3, totalSpent: 980, lastOrderAt: '2026-08-15T11:20:00Z', wishlist: [] },
-    { id: 'cust-5', name: 'John Carter', email: 'john.carter@yahoo.com', phone: '+1 (555) 442-8801', ordersCount: 1, totalSpent: 2299, lastOrderAt: '2026-08-20T18:00:00Z', wishlist: [] },
-    { id: 'cust-6', name: 'Priya Patel', email: 'priya.patel@gmail.com', phone: '+91 98765 43210', ordersCount: 4, totalSpent: 1420, lastOrderAt: '2026-08-17T09:15:00Z', wishlist: ['PB-SPOT-1Y'] },
-  ];
-
-  // Merge: prefer seedCustomers (richer data), then add any customers from orders not already in seeds
-  const seenEmails = new Set(seedCustomers.map(c => c.email));
-  const merged = [...seedCustomers, ...customersFromOrders.filter(c => !seenEmails.has(c.email))];
+  const registeredByEmail = new Map(registeredCustomers.map(customer => [customer.email.toLowerCase(), customer]));
+  const merged = [...registeredCustomers.map(customer => ({
+    ...customer,
+    ordersCount: orders.filter(order => order.customerEmail.toLowerCase() === customer.email.toLowerCase()).length,
+    totalSpent: orders.filter(order => order.customerEmail.toLowerCase() === customer.email.toLowerCase() && order.paymentStatus === 'paid').reduce((sum, order) => sum + order.total, 0),
+    lastOrderAt: orders.find(order => order.customerEmail.toLowerCase() === customer.email.toLowerCase())?.createdAt || customer.createdAt,
+  })), ...customersFromOrders.filter(customer => !registeredByEmail.has(customer.email.toLowerCase()))];
 
   const filtered = merged.filter(c =>
     !search ||

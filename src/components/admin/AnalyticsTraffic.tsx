@@ -19,13 +19,6 @@ export const AnalyticsTraffic: React.FC = () => {
   const topProducts = [...products].sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0)).slice(0, 8);
 
   // Build revenue chart data from existing orders
-  const ordersByDay: Record<string, number> = {};
-  // Use the last 7 days as buckets — if no real orders exist, fall back to mock buckets
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6 - i)); return d.toISOString().split('T')[0];
-  });
-  last7Days.forEach(day => { ordersByDay[day] = 0; });
-
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -98,28 +91,20 @@ export const AnalyticsTraffic: React.FC = () => {
           <div className="flex items-center gap-2 mb-4">
             <Globe className="w-4 h-4 text-blue-400" />
             <h2 className="text-sm font-semibold text-white">Traffic Sources</h2>
-            <span className="admin-pill-green ml-auto flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Live
-            </span>
+            <span className="admin-pill-blue ml-auto">Configured sources only</span>
           </div>
-          <div className="h-[200px] -ml-2">
+          <div className="h-[200px] flex items-center justify-center text-center text-xs text-gray-500">
+            No traffic source provider is connected. Connect an analytics provider to display real attribution data.
+          </div>
+          {/* Traffic chart intentionally stays empty until a real provider is configured. */}
+          <div className="hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: 'Direct', value: 1492, color: '#3b82f6' },
-                { name: 'TikTok', value: 882, color: '#8b5cf6' },
-                { name: 'Google', value: 481, color: '#10b981' },
-                { name: 'Affiliate', value: 172, color: '#f59e0b' },
-                { name: 'Social', value: 96, color: '#ec4899' },
-              ]} layout="vertical" margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
+              <BarChart data={[]} layout="vertical" margin={{ top: 0, right: 5, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
                 <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} width={60} />
                 <Tooltip contentStyle={{ background: '#0a0b0d', border: '1px solid #252b3b', borderRadius: 8, fontSize: 12, color: '#f9fafb' }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {[{ color: '#3b82f6' }, { color: '#8b5cf6' }, { color: '#10b981' }, { color: '#f59e0b' }, { color: '#ec4899' }].map((c, i) => (
-                    <Cell key={i} fill={c.color} />
-                  ))}
-                </Bar>
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

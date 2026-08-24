@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import {
   TrendingUp,
@@ -69,6 +69,18 @@ export const AdminDashboard: React.FC = () => {
   // Retained for backwards-compatible settings markup; the reference toolbar no longer exposes this modal.
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [timeRange, setTimeRange] = useState<'1D' | '1W' | '1M' | '1Y'>('1W');
+  const [customerCount, setCustomerCount] = useState(0);
+  const [dbHealthy, setDbHealthy] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/users').then(response => response.ok ? response.json() : { users: [] }),
+      fetch('/api/health/db').then(response => response.ok ? response.json() : { ok: false }),
+    ]).then(([usersData, healthData]) => {
+      setCustomerCount(Array.isArray(usersData.users) ? usersData.users.filter((user: any) => user.role === 'customer' && user.status !== 'deleted').length : 0);
+      setDbHealthy(Boolean(healthData.ok));
+    }).catch(() => setDbHealthy(false));
+  }, [orders.length, products.length]);
 
   const handleReset = async () => {
     if (confirmText !== 'RESET') {
@@ -93,28 +105,19 @@ export const AdminDashboard: React.FC = () => {
     setResetting(false);
   };
 
-  // ---- Mock data for the dashboard cards (kept lightweight, no API churn) ----
-
-  // 14-day revenue trend (deterministic, no Math.random on render)
-  const revenueData = orders.length === 0 && products.length === 0 ? [] : [
-    { date: 'Aug 03', revenue: 620 },
-    { date: 'Aug 04', revenue: 540 },
-    { date: 'Aug 05', revenue: 780 },
-    { date: 'Aug 06', revenue: 690 },
-    { date: 'Aug 07', revenue: 920 },
-    { date: 'Aug 08', revenue: 860 },
-    { date: 'Aug 09', revenue: 1100 },
-    { date: 'Aug 10', revenue: 1020 },
-    { date: 'Aug 11', revenue: 1240 },
-    { date: 'Aug 12', revenue: 1180 },
-    { date: 'Aug 13', revenue: 1450 },
-    { date: 'Aug 14', revenue: 1380 },
-    { date: 'Aug 15', revenue: 1620 },
-    { date: 'Aug 16', revenue: 1890 },
-    { date: 'Aug 17', revenue: 1740 },
-    { date: 'Aug 18', revenue: 1980 },
-    { date: 'Aug 19', revenue: 2150 },
-  ];
+  const revenueData = useMemo(() => Array.from({ length: 14 }, (_, offset) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (13 - offset));
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    const dayOrders = orders.filter(order => {
+      const created = new Date(order.createdAt);
+      return created >= date && created < next;
+    });
+    return { date: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), revenue: dayOrders.filter(order => order.paymentStatus === 'paid').reduce((sum, order) => sum + order.total, 0), orders: dayOrders.length };
+  }), [orders]);
+  const maxDailyRevenue = Math.max(...revenueData.map(point => point.revenue), 1);
 
   // Order breakdown — most orders completed
   const completedOrders = orders.filter(o => o.orderStatus === 'completed').length;
@@ -122,20 +125,13 @@ export const AdminDashboard: React.FC = () => {
   const totalOrdersCount = orders.length;
   const completionRate = totalOrdersCount > 0 ? Math.round((completedOrders / totalOrdersCount) * 100) : 0;
 
-  // Traffic sources (deterministic)
-  const trafficSources = orders.length === 0 && products.length === 0 ? [] : [
-    { label: 'Direct / URL', percent: 52, count: 1492, color: '#3b82f6' },
-    { label: 'TikTok Leads & Pixel', percent: 28, count: 882, color: '#8b5cf6' },
-    { label: 'Organic Google Search', percent: 14, count: 481, color: '#10b981' },
-    { label: 'Affiliate Network Referrals', percent: 6, count: 172, color: '#f59e0b' },
-  ];
+  // Traffic attribution is intentionally empty until a real analytics source is configured.
+  const trafficSources: { label: string; percent: number; count: number; color: string }[] = [];
 
   // System status
   const systemStatus = [
-    { icon: Server, label: 'Server', status: 'Operational', state: 'green' },
-    { icon: Globe, label: 'CDN', status: 'Operational', state: 'green' },
-    { icon: CreditCard, label: 'Payment Gateway', status: 'Operational', state: 'green' },
-    { icon: Database, label: 'MongoDB Atlas Cloud', sublabel: 'playbeat.unopay.mongodb.net', status: 'Connected', state: 'green' },
+    { icon: Server, label: 'API Server', status: 'Operational', state: 'green' },
+    { icon: Database, label: 'Database', status: dbHealthy === null ? 'Checking' : dbHealthy ? 'Connected' : 'Unavailable', state: dbHealthy ? 'green' : 'amber' },
   ];
 
   // Live notifications — pull from recent orders if available
@@ -145,10 +141,7 @@ export const AdminDashboard: React.FC = () => {
     time: '1h ago',
   }));
   // Fallbacks if no orders in store
-  const notifications = liveNotifications.length > 0 ? liveNotifications : (orders.length === 0 && products.length === 0 ? [] : [
-    { title: 'Order Verified', message: 'Megacubic HY300 PRO parcel dispatched via TCS Express #TCS-892182', time: '1h ago' },
-    { title: 'New Arrival', message: 'Megacubic HY300Pro Plus with motorized focus now in stock at ZeroByte store.', time: '1h ago' },
-  ]);
+  const notifications = liveNotifications;
 
   // Recent orders (last 5)
   const recentOrders = orders.slice(0, 3);
@@ -201,11 +194,11 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="text-2xl font-bold text-white font-mono">{formatPrice(orders.reduce((s, o) => s + (o.paymentStatus === 'paid' ? o.total : 0), 0))}</div>
           <div className="text-[10px] text-emerald-200 mt-1 flex items-center gap-1">
-            <ArrowUpRight className="w-3 h-3" /> +18.4% vs last period
+            <TrendingUp className="w-3 h-3" /> Based on paid orders
           </div>
           <div className="flex items-end gap-0.5 mt-3 h-8">
-            {[40, 55, 45, 70, 60, 85, 75, 90, 80, 95].map((h, i) => (
-              <div key={i} className="flex-1 bg-emerald-300/40 rounded-sm" style={{ height: `${h}%` }} />
+            {revenueData.slice(-10).map((point, i) => (
+              <div key={i} className="flex-1 bg-emerald-300/40 rounded-sm" style={{ height: `${Math.max(8, (point.revenue / maxDailyRevenue) * 100)}%` }} />
             ))}
           </div>
         </button>
@@ -219,11 +212,11 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="text-2xl font-bold text-white font-mono">{orders.length}</div>
           <div className="text-[10px] text-blue-200 mt-1 flex items-center gap-1">
-            <ArrowUpRight className="w-3 h-3" /> +12.1% vs last period
+            <ShoppingCart className="w-3 h-3" /> All recorded orders
           </div>
           <div className="flex items-end gap-0.5 mt-3 h-8">
-            {[30, 45, 35, 60, 50, 65, 55, 70, 60, 75].map((h, i) => (
-              <div key={i} className="flex-1 bg-blue-300/40 rounded-sm" style={{ height: `${h}%` }} />
+            {revenueData.slice(-10).map((point, i) => (
+              <div key={i} className="flex-1 bg-blue-300/40 rounded-sm" style={{ height: `${Math.max(8, Math.min(100, point.orders * 10))}%` }} />
             ))}
           </div>
         </button>
@@ -240,8 +233,8 @@ export const AdminDashboard: React.FC = () => {
             <ArrowUpRight className="w-3 h-3" /> {products.filter(p => p.status === 'published').length} published
           </div>
           <div className="flex items-end gap-0.5 mt-3 h-8">
-            {[50, 60, 55, 65, 70, 75, 80, 85, 90, 95].map((h, i) => (
-              <div key={i} className="flex-1 bg-purple-300/40 rounded-sm" style={{ height: `${h}%` }} />
+            {Array.from({ length: Math.max(1, Math.min(10, products.length)) }, (_, i) => (
+              <div key={i} className="flex-1 bg-purple-300/40 rounded-sm" style={{ height: `${Math.max(10, ((i + 1) / Math.max(products.length, 1)) * 100)}%` }} />
             ))}
           </div>
         </button>
@@ -253,13 +246,13 @@ export const AdminDashboard: React.FC = () => {
             <div className="text-[10px] uppercase text-cyan-100 tracking-wider font-mono font-bold">Total Customers</div>
             <Users className="w-4 h-4 text-cyan-200" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{products.length === 0 && orders.length === 0 ? 0 : 248}</div>
+          <div className="text-2xl font-bold text-white font-mono">{customerCount}</div>
           <div className="text-[10px] text-cyan-200 mt-1 flex items-center gap-1">
-            <ArrowUpRight className="w-3 h-3" /> +9.7% vs last period
+            <Users className="w-3 h-3" /> From registered customer records
           </div>
           <div className="flex items-end gap-0.5 mt-3 h-8">
-            {[35, 42, 48, 44, 55, 60, 58, 68, 75, 82].map((h, i) => (
-              <div key={i} className="flex-1 bg-cyan-300/40 rounded-sm" style={{ height: `${h}%` }} />
+            {Array.from({ length: Math.max(1, Math.min(10, customerCount || 1)) }, (_, i) => (
+              <div key={i} className="flex-1 bg-cyan-300/40 rounded-sm" style={{ height: `${Math.max(10, ((i + 1) / Math.max(customerCount, 1)) * 100)}%` }} />
             ))}
           </div>
         </button>
@@ -281,7 +274,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <span className="admin-pill-green flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" />
-              +18.4%
+              Paid orders
             </span>
           </div>
           <div className="h-[180px] -ml-2">
@@ -398,10 +391,7 @@ export const AdminDashboard: React.FC = () => {
               <Globe className="w-4 h-4 text-blue-400" />
               <h3 className="text-sm font-semibold text-white">Traffic Sources</h3>
             </div>
-            <span className="admin-pill-green flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Influx
-            </span>
+            <span className="admin-pill-blue">Configured sources only</span>
           </div>
           <div className="space-y-2.5">
             {trafficSources.map((src) => (
@@ -421,9 +411,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-gray-600 mt-3 font-mono">
-            Real-time analytics captured from playbeat.digital
-          </p>
+          {trafficSources.length === 0 && <p className="text-[10px] text-gray-600 mt-3 font-mono">No traffic provider is connected yet.</p>}
         </div>
       </div>
 
@@ -534,13 +522,13 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="text-sm font-semibold text-white">System Health</h3>
               <p className="text-[11px] text-gray-500 mt-0.5">Live service availability</p>
             </div>
-            <span className="admin-pill-green">100% Healthy</span>
+            <span className={dbHealthy ? 'admin-pill-green' : 'admin-pill-amber'}>{dbHealthy === null ? 'Checking' : dbHealthy ? 'Healthy' : 'Degraded'}</span>
           </div>
           <div className="flex items-center gap-5">
             <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full border-[10px] border-[#1f2937]" />
-              <div className="absolute inset-0 rounded-full border-[10px] border-emerald-400 border-l-transparent rotate-[-35deg]" style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,.45))' }} />
-              <div className="text-center"><div className="text-2xl font-bold text-white">100%</div><div className="text-[10px] text-emerald-400">Healthy</div></div>
+              <div className={`absolute inset-0 rounded-full border-[10px] ${dbHealthy ? 'border-emerald-400' : 'border-amber-400'} border-l-transparent rotate-[-35deg]`} />
+              <div className="text-center"><div className="text-2xl font-bold text-white">{dbHealthy === null ? '—' : dbHealthy ? 'OK' : '!'}</div><div className="text-[10px] text-gray-400">Database</div></div>
             </div>
             <div className="space-y-3 flex-1">
               {systemStatus.map((sys) => <div key={sys.label} className="flex items-center justify-between gap-2 text-[11px]"><span className="flex items-center gap-2 text-gray-300 truncate"><CircleCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />{sys.label === 'MongoDB Atlas Cloud' ? 'Database' : sys.label}</span><span className="text-emerald-400 text-[10px]">Operational</span></div>)}
