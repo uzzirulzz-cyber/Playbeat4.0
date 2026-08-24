@@ -835,14 +835,21 @@ export async function createImportJob(job: ImportJob): Promise<void> {
  */
 export async function addProducts(products: Product[]): Promise<void> {
   if (isMongoConfigured) {
-    const db = await getDb();
-    if (products.length > 0) {
-      const now = new Date().toISOString();
-      await db.collection('products').insertMany(products.map(p => ({ ...p, _seededAt: now })));
+    try {
+      const db = await getDb();
+      if (products.length > 0) {
+        const now = new Date().toISOString();
+        await db.collection('products').insertMany(products.map(p => ({ ...p, _seededAt: now })));
+      }
+      return;
+    } catch (err) {
+      console.warn('[repository] MongoDB error in addProducts, using in-memory fallback:', (err as Error)?.message?.substring(0, 160));
+      globalThis.__mongoConnPromise = undefined;
+      globalThis.__mongoClient = undefined;
+      globalThis.__mongoDb = undefined;
     }
-  } else {
-    memProducts = [...products, ...memProducts];
   }
+  memProducts = [...products, ...memProducts];
 }
 
 // ============================================================

@@ -592,38 +592,47 @@ export function createApiApp(): Express {
 
   // CSV / Custom Supplier Batch Upload
   app.post('/api/import/batch', async (req, res) => {
-    const { items, markupType = 'percentage', markupValue = 20, autoApprove = false, categoryId } = req.body;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'items array is required' });
+    try {
+      const { items, markupType = 'percentage', markupValue = 20, autoApprove = false, categoryId } = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, error: 'items array is required' });
+      }
+      if (!['percentage', 'fixed'].includes(markupType) || !Number.isFinite(Number(markupValue))) {
+        return res.status(400).json({ success: false, error: 'markupType and numeric markupValue are required' });
+      }
+
+      const allProducts = await repo.getProducts();
+      const result = processSmartProductImport(items as RawImportItem[], allProducts, {
+        markupType,
+        markupValue: Number(markupValue),
+        autoApprove: Boolean(autoApprove),
+        defaultCategoryId: categoryId
+      });
+
+      if (result.importedProducts.length > 0) await repo.addProducts(result.importedProducts);
+      await repo.createImportJob(result.importJob);
+
+      await repo.createAdminLog({
+        id: `log-${Date.now()}`,
+        adminName: 'PlayBeat Admin',
+        adminEmail: 'admin@playbeat.digital',
+        action: 'Batch CSV Import',
+        targetType: 'import',
+        targetId: result.importJob.id,
+        details: `Batch imported ${result.importedProducts.length} items. Duplicates detected: ${result.importJob.duplicateCount}; row errors: ${result.importJob.errorCount}`,
+        timestamp: new Date().toISOString()
+      });
+
+      return res.status(result.importedProducts.length > 0 ? 200 : 422).json({
+        success: result.importedProducts.length > 0,
+        error: result.importedProducts.length > 0 ? undefined : 'No valid products could be imported.',
+        importJob: result.importJob,
+        importedProducts: result.importedProducts
+      });
+    } catch (error: any) {
+      console.error('[import/batch] publish failed:', error);
+      return res.status(500).json({ success: false, error: error?.message || 'CSV batch publish failed.' });
     }
-
-    const allProducts = await repo.getProducts();
-    const result = processSmartProductImport(items as RawImportItem[], allProducts, {
-      markupType,
-      markupValue,
-      autoApprove,
-      defaultCategoryId: categoryId
-    });
-
-    await repo.addProducts(result.importedProducts);
-    await repo.createImportJob(result.importJob);
-
-    await repo.createAdminLog({
-      id: `log-${Date.now()}`,
-      adminName: 'PlayBeat Admin',
-      adminEmail: 'admin@playbeat.digital',
-      action: 'Batch CSV Import',
-      targetType: 'import',
-      targetId: result.importJob.id,
-      details: `Batch imported ${result.importedProducts.length} items. Duplicates detected: ${result.importJob.duplicateCount}`,
-      timestamp: new Date().toISOString()
-    });
-
-    res.json({
-      success: true,
-      importJob: result.importJob,
-      importedProducts: result.importedProducts
-    });
   });
 
   app.get('/api/import/jobs', async (req, res) => {

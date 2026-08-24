@@ -155,10 +155,16 @@ export const CsvImportReviewModal: React.FC<Props> = ({ isOpen, products, onClos
           method: existing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(existing ? payload : { items: [{ externalId: row.sku, title: row.title, description: row.description, category: row.category, costPrice: row.price * 0.8, price: row.price, stock: row.stock, sku: row.sku, imageUrl: row.imageUrl, productType: 'digital', variations: row.variations }], markupType: 'percentage', markupValue: 25, autoApprove: publish }),
         });
-        if (!response.ok) { failed += 1; continue; }
+        if (!response.ok) {
+          failed += 1;
+          const data = await response.json().catch(() => null);
+          const reason = data?.error || data?.importJob?.logs?.find((log: string) => log.includes('[ERROR]')) || `HTTP ${response.status}`;
+          setErrors(previous => [...previous, `${row.sourceFile} row ${row.rowNumber}: ${reason}`]);
+          continue;
+        }
         existing ? updated += 1 : imported += 1;
       }
-      if (failed) addToast('warning', 'Import Partially Saved', `${updated + imported} saved, ${failed} failed. Review the server logs for failed rows.`);
+      if (failed) addToast('warning', 'Import Partially Saved', `${updated + imported} saved, ${failed} failed. Failed-row details are shown in this review.`);
       else addToast('success', publish ? 'CSV Published' : 'CSV Saved for Review', `${updated} updates and ${imported} new products ${publish ? 'are live' : 'are queued for approval'}.`);
       onComplete(); onClose();
     } catch (error) {
